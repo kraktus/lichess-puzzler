@@ -231,7 +231,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--file", "-f", help="input PGN file", required=True, metavar="FILE.pgn")
     parser.add_argument("--engine", "-e", help="analysis engine", default="./stockfish")
     parser.add_argument("--threads", "-t", help="count of cpu threads for engine searches", default="4")
-    parser.add_argument("--url", "-u", help="URL where to post puzzles", default="http://localhost:8000")
+    parser.add_argument("--url", "-u", help="URL where to post puzzles", default="")
     parser.add_argument("--token", help="Server secret token", default="changeme")
     parser.add_argument("--skip", help="How many games to skip from the source", default="0")
     parser.add_argument("--verbose", "-v", help="increase verbosity", action="count")
@@ -265,7 +265,7 @@ def main() -> None:
     games = 0
     site = "?"
     has_master = False
-    tier = 0
+    tier = 10
     skip = int(args.skip)
     logger.info("Skipping first {} games".format(skip))
 
@@ -282,10 +282,6 @@ def main() -> None:
                     games = games + 1
                     has_master = False
                     tier = 4
-                elif games < skip:
-                    continue
-                elif games % parts != part - 1:
-                    continue
                 if tier == 0:
                     skip_next = True
                 elif line.startswith("[Variant ") and not line.startswith("[Variant \"Standard\"]"):
@@ -296,16 +292,14 @@ def main() -> None:
                     ):
                     has_master = True
                 else:
-                    r_tier = util.rating_tier(line)
-                    t_tier = util.time_control_tier(line)
-                    if r_tier is not None:
-                        tier = min(tier, r_tier)
-                    elif t_tier is not None:
-                        tier = min(tier, t_tier)
-                    elif line.startswith("1. ") and skip_next:
+                    #print(line)
+                    if line.startswith("1. ") and skip_next:
+                        logger.info("test")
                         logger.debug("Skip {}".format(site))
                         skip_next = False
-                    elif "%eval" in line:
+
+                    elif r"%eval" in line:
+                        logger.info("test")
                         tier = tier + 1 if has_master else tier
                         game = chess.pgn.read_game(StringIO("{}\n{}".format(site, line)))
                         assert(game)
@@ -316,7 +310,7 @@ def main() -> None:
                             skip = games + to_skip
                             continue
 
-                        # logger.info(f'https://lichess.org/{game_id} tier {tier}')
+                        logger.info(f'https://lichess.org/{game_id} tier {tier}')
                         try:
                             puzzle = generator.analyze_game(game, tier)
                             if puzzle is not None:
