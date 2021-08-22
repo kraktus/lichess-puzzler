@@ -269,6 +269,7 @@ def main() -> None:
     has_master = False
     tier = 10
     skip = int(args.skip)
+    write_h = skip > 0 # Erase the .csv file if not skipping any game (i.e starting over), else add
     logger.info("Skipping first {} games".format(skip))
 
     print(f'v{version}')
@@ -276,12 +277,12 @@ def main() -> None:
 
     try:
         with open_file(args.file) as pgn:
-            skip_next = False
             filtered_games_offset: List[int] = []
             while "Look for all headers of the file":
                 offset = pgn.tell()
                 headers = chess.pgn.read_headers(pgn)
-                if skip_next:
+                if skip > 0:
+                    skip -= 1
                     continue
                 if headers is None:
                     break
@@ -302,12 +303,15 @@ def main() -> None:
                 if players is not None and black not in players and white not in players:
                     continue
                 filtered_games_offset.append(offset)
-            logger.info(f"All headers parsed, {len(filtered_games_offset)} games that match the criterias")
-            write_h = True
+            logger.info(f"All headers parsed, {len(filtered_games_offset)}/{games} games that match the criterias.")
 
             for i, game_offset in enumerate(filtered_games_offset):
                 pgn.seek(game_offset)
                 game = chess.pgn.read_game(pgn)
+                black = game.headers.get("Black", "?")
+                white = game.headers.get("White", "?")
+                if game.errors:
+                    logger.error(f"Illegal move detected in {white} vs {black}, game {i}")
                 assert(game)
                 game_id = game.headers.get("Site", "?")[20:]
                 # logger.info(f'https://lichess.org/{game_id} tier {tier}')
@@ -321,10 +325,12 @@ def main() -> None:
                 except Exception as e:
                     logger.error("Exception on {}: {}".format(game_id, e))
     except KeyboardInterrupt:
-        print(f'v{version} {args.file} Game {games}')
+        print(f'v{version} {args.file} Game {i}')
         sys.exit(1)
 
     engine.close()
+    print(f'v{version} {args.file} Game {i}')
 
 if __name__ == "__main__":
+    print('#'*80)
     main()
