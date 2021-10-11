@@ -14,8 +14,8 @@ from chess.engine import SimpleEngine, Mate, Cp, Score, PovScore
 from chess.pgn import Game, ChildNode
 
 from pathlib import Path
-from typing import List, Optional, Union
-from util import get_next_move_pair, material_count, material_diff, is_up_in_material, win_chances
+from typing import List, Optional, Union, Set
+from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
 from server import Server
 
 version = "48WC" # Was made for the World Championship first
@@ -262,6 +262,7 @@ def main() -> None:
         logger.setLevel(logging.INFO)
     engine = make_engine(args.engine, args.threads)
     server = Server(logger, args.url, args.token, version)
+    generator = Generator(engine, server)
     file = Path(args.file)
     games = 0
     site = "?"
@@ -315,7 +316,7 @@ def main() -> None:
                 game_id = game.headers.get("Site", "?")[20:]
                 # logger.info(f'https://lichess.org/{game_id} tier {tier}')
                 try:
-                    puzzle = analyze_game(server, engine, game, tier)
+                    puzzle = generator.analyze_game(game, tier)
                     if puzzle is not None:
                         logger.info(f'v{version} {args.file} {util.avg_knps()} knps, tier {tier}, game {i}')
                         print(f"Game: {game_id}")
