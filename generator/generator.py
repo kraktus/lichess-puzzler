@@ -7,16 +7,19 @@ import copy
 import sys
 import util
 import bz2
+
 from model import Puzzle, NextMovePair
 from io import StringIO
 from chess import Move, Color
 from chess.engine import SimpleEngine, Mate, Cp, Score, PovScore
 from chess.pgn import Game, ChildNode
-from typing import List, Optional, Union, Set
-from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
+
+from pathlib import Path
+from typing import List, Optional, Union
+from util import get_next_move_pair, material_count, material_diff, is_up_in_material, win_chances
 from server import Server
 
-version = 48
+version = "48WC" # Was made for the World Championship first
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)-4s %(message)s', datefmt='%m/%d %H:%M')
@@ -229,14 +232,12 @@ def parse_args() -> argparse.Namespace:
         prog='generator.py',
         description='takes a pgn file and produces chess puzzles')
     parser.add_argument("--file", "-f", help="input PGN file", required=True, metavar="FILE.pgn")
-    parser.add_argument("--engine", "-e", help="analysis engine", default="./stockfish")
+    parser.add_argument("--engine", "-e", help="analysis engine", default="stockfish")
     parser.add_argument("--threads", "-t", help="count of cpu threads for engine searches", default="4")
     parser.add_argument("--url", "-u", help="URL where to post puzzles", default="")
     parser.add_argument("--token", help="Server secret token", default="changeme")
     parser.add_argument("--skip", help="How many games to skip from the source", default="0")
     parser.add_argument("--verbose", "-v", help="increase verbosity", action="count")
-    parser.add_argument("--parts", help="how many parts", default="8")
-    parser.add_argument("--part", help="which one of the parts", default="0")
     parser.add_argument("--players", nargs='+', help="A list of players. If set, only generate games in which one of them played")
 
     return parser.parse_args()
@@ -256,13 +257,13 @@ def open_file(file: str):
 def main() -> None:
     sys.setrecursionlimit(10000) # else node.deepcopy() sometimes fails?
     args = parse_args()
-    if args.verbose == 2:
+    if args.verbose >= 2:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
     engine = make_engine(args.engine, args.threads)
     server = Server(logger, args.url, args.token, version)
-    generator = Generator(engine, server)
+    file = Path(args.file)
     games = 0
     site = "?"
     has_master = False
@@ -270,9 +271,7 @@ def main() -> None:
     skip = int(args.skip)
     logger.info("Skipping first {} games".format(skip))
 
-    parts = int(args.parts)
-    part = int(args.part)
-    print(f'v{version} {args.file} {part}/{parts}')
+    print(f'v{version}')
     players = args.players
 
     try:
@@ -315,9 +314,9 @@ def main() -> None:
                 try:
                     puzzle = analyze_game(server, engine, game, tier)
                     if puzzle is not None:
-                        logger.info(f'v{version} {args.file} {part}/{parts} {util.avg_knps()} knps, tier {tier}, game {i}')
+                        logger.info(f'v{version} {args.file} {util.avg_knps()} knps, tier {tier}, game {i}')
                         print(f"Game: {game_id}")
-                        server.post(game, puzzle, "_".join(players) if players is not None else "puzzle", write_h)
+                        server.post(game, puzzle, "_".join(players) if players is not None else file.stem, write_h)
                         write_h = False
                 except Exception as e:
                     logger.error("Exception on {}: {}".format(game_id, e))

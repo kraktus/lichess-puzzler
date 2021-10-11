@@ -22,7 +22,7 @@ TIMEOUT = 5
 
 class Server:
 
-    def __init__(self, logger: logging.Logger, url: str, token: str, version: int) -> None:
+    def __init__(self, logger: logging.Logger, url: str, token: str, version: str) -> None:
         self.logger = logger
         self.url = url
         self.token = token
