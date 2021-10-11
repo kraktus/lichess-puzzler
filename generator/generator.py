@@ -18,12 +18,11 @@ from typing import List, Optional, Union, Set
 from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
 from server import Server
 
-version = "48WC2" # Was made for the World Championship first
+version = "48WC3" # Was made for the World Championship first
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)-4s %(message)s', datefmt='%m/%d %H:%M')
 
-NOT_ANALYSED_WARNING = False
 eval_limit = chess.engine.Limit(depth = 15, time = 30, nodes = 10_000_000) # when the move isn't analysed
 pair_limit = chess.engine.Limit(depth = 50, time = 30, nodes = 30_000_000)
 mate_defense_limit = chess.engine.Limit(depth = 15, time = 10, nodes = 10_000_000)
@@ -34,6 +33,7 @@ class Generator:
     def __init__(self, engine: SimpleEngine, server: Server):
         self.engine = engine
         self.server = server
+        self.not_analysed_warning = False
 
     def is_valid_mate_in_one(self, pair: NextMovePair) -> bool:
         if pair.best.score != Mate(1):
@@ -143,9 +143,9 @@ class Generator:
             current_eval = node.eval()
 
             if not current_eval:
-                if not NOT_ANALYSED_WARNING:
+                if not self.not_analysed_warning:
                     logger.warning("Game not already analysed by stockfish, will make one but consider using already analysed games from Lichess")
-                    NOT_ANALYSED_WARNING = True
+                    self.not_analysed_warning = True
                 logger.debug("Move without eval on ply {}, computing...".format(node.ply()))
                 current_eval = self.engine.analyse(node.board(), eval_limit)["score"]
 
