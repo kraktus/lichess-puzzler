@@ -1,4 +1,5 @@
 import logging
+import csv
 from chess.pgn import Game, GameNode, ChildNode
 from model import Puzzle
 import requests
@@ -58,11 +59,13 @@ class Server:
     def _seen_url(self, id: str) -> str:
         return "{}/seen?token={}&id={}".format(self.url, self.token, id)
 
-    def post(self, game_id: str, puzzle: Puzzle) -> None:
+    def post(self, game: Game, puzzle: Puzzle, name: str, write_h: bool = False) -> None:
         parent = puzzle.node.parent
         assert parent
         json = {
-            'game_id': game_id,
+            'white': game.headers.get("White", "?"),
+            'black': game.headers.get("Black", "?"),
+            'game_id': game.headers.get("Site", "?")[20:],
             'fen': parent.board().fen(),
             'ply': parent.ply(),
             'moves': [puzzle.node.uci()] + list(map(lambda m : m.uci(), puzzle.moves)),
@@ -71,6 +74,11 @@ class Server:
         }
         if not self.url:
             print(json)
+            with open(f"{name}.csv", "w" if write_h else "a") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=json.keys())
+                if write_h:
+                    writer.writeheader()
+                writer.writerow(json)
             return None
         try:
             r = http.post("{}/puzzle?token={}".format(self.url, self.token), json=json)
