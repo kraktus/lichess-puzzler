@@ -18,7 +18,7 @@ from typing import List, Optional, Union, Set
 from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
 from server import Server
 
-version = "48WC3" # Was made for the World Championship first
+version = "48WC4" # Was made for the World Championship first
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)-4s %(message)s', datefmt='%m/%d %H:%M')
@@ -302,8 +302,6 @@ def main() -> None:
                 white_title = headers.get("WhiteTitle", "?")
                 black_title = headers.get("BlackTitle", "?")
                 if variant != "Standard":
-                    continue
-                if "BOT" in (white_title + black_title): # code golf for OR
                     continue
                 if players is not None and black not in players and white not in players:
                     continue
