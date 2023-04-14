@@ -1,23 +1,11 @@
-Generate puzzles from a game database.
+Generate puzzles from a PGN file! It will look at all games, and analyse them if needed.
 
 ```
 python3 -m venv venv
-. venv/bin/activate
+source venv/bin/activate
 pip install -r requirements.txt
 python3 generator.py --help
-python3 generator.py -t 6 -v -f my_file.pgn # If stockfish installed globally
+python3 generator.py -t 6 -v -f my_file.pgn # If stockfish installed globally, otherwise use `--engine PATH_TO_YOUR_UCI_ENGINE`
 ```
 
-prod:
-
-```
-sudo apt update
-sudo apt install software-properties-common
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt install -y python3.8
-sudo apt install -y python3.8-venv
-python3.8 -m venv venv
-. venv/bin/activate
-python3.8 -m pip install -r requirements.txt
-nice -n19 python3.8 generator.py -t 4 -v --url=http://godot.lichess.ovh:9371 --token=**** -e /home/fishnet/stockfish-x86_64-bmi2 -f ../data/lichess_db_standard_rated_2020-07.pgn.bz2
-```
+Important! If something does not work, make sure you version matches [this one](https://github.com/kraktus/lichess-puzzler/blob/730329a24e0a402f760b1392320bdaaada052ce2/generator/generator.py#L22). if you don't see `WC` in the version, you have probably not chosen the right branch.

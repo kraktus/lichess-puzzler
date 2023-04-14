@@ -1,38 +1,8 @@
-lichess puzzler
----------------
 
-Let's renew the puzzle collection.
-We'll produce a collection of new puzzles out of the lichess game database.
+lichess puzzler (WC version)
+----------------------------
 
-We need a program that generates puzzles,
-and one that allows manual validation and categorization of each and every puzzle.
+If you are here, it's probably because you want to generate puzzles from unanalysed PGN for your own usage! See [the generator's README for detailed instructions.](https://github.com/kraktus/lichess-puzzler/tree/WC/generator#readme)
 
-## Generator
 
-Use stockfish and database.lichess.org to produce puzzle candidates.
-Python is probably the language of choice because of
-https://github.com/niklasf/python-chess
-
-The generator posts candidates to the validator.
-
-## Validator
-
-Stores puzzle candidates and lets people review them with a web UI.
-
-mongodb puzzle:
-```
-{
-  _id: 1, // incremental
-  createdAt: date,
-  gameId: string,
-  fen: string,
-  ply: number,
-  moves: [uci],
-  review: { // after a review was done
-    at: date,
-    score: 0-5, // quality
-    rating: 1200 // estimated rating
-    topics: [string],
-  }
-}
-```
+Why WC (World Championship) version? Because I first developped it when I wanted to extract puzzles from 2021's WC games so we could include them in Lichess blogs.
