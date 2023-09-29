@@ -239,6 +239,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--verbose", "-v", help="increase verbosity", action="count")
     parser.add_argument("--parts", help="how many parts", default="8")
     parser.add_argument("--part", help="which one of the parts", default="0")
+    parser.add_argument("--players", nargs='+', help="A list of players. If set, only generate games in which one of them played")
 
     return parser.parse_args()
 
@@ -274,55 +275,52 @@ def main() -> None:
     parts = int(args.parts)
     part = int(args.part)
     print(f'v{version} {args.file} {part}/{parts}')
+    players = args.players
 
     try:
         with open_file(args.file) as pgn:
             skip_next = False
-            for line in pgn:
-                if line.startswith("[Site "):
-                    site = line
-                    games = games + 1
-                    has_master = False
-                    tier = 4
-                if tier == 0:
-                    skip_next = True
-                elif line.startswith("[Variant ") and not line.startswith("[Variant \"Standard\"]"):
-                    skip_next = True
-                elif (
-                        (line.startswith("[WhiteTitle ") or line.startswith("[BlackTitle ")) and
-                        "BOT" not in line
-                    ):
-                    has_master = True
-                else:
-                    #print(line)
-                    if line.startswith("1. ") and skip_next:
-                        logger.info("test")
-                        logger.debug("Skip {}".format(site))
-                        skip_next = False
+            filtered_games_offset: List[int] = []
+            while "Look for all headers of the file":
+                offset = pgn.tell()
+                headers = chess.pgn.read_headers(pgn)
+                if skip_next:
+                    continue
+                if headers is None:
+                    break
+                games = games + 1
+                if games % 1000 == 0:
+                    logger.info(f"{games} headers parsed")
+                variant = headers.get("Variant", "Standard")
+                black = headers.get("Black", "?")
+                white = headers.get("White", "?")
+                white_title = headers.get("WhiteTitle", "?")
+                black_title = headers.get("BlackTitle", "?")
+                if variant != "Standard":
+                    continue
+                if "BOT" in (white_title + black_title): # code golf for OR
+                    continue
+                if players is not None and black not in players and white not in players:
+                    continue
+                filtered_games_offset.append(offset)
+            logger.info(f"All headers parsed, {len(filtered_games_offset)} games that match the criterias")
+            write_h = True
 
-                    elif r"%eval" in line:
-                        logger.info("test")
-                        tier = tier + 1 if has_master else tier
-                        game = chess.pgn.read_game(StringIO("{}\n{}".format(site, line)))
-                        assert(game)
-                        nb_moves = len(list(game.mainline_moves()))
-                        tier = tier + 1 if nb_moves < 38 else tier
-                        tier = tier + 1 if nb_moves < 21 else tier
-                        game_id = game.headers.get("Site", "?")[20:]
-                        if server.is_seen(game_id):
-                            to_skip = 1
-                            logger.info(f'Game {game_id} was already seen before, skipping {to_skip} - {games}')
-                            skip = games + to_skip
-                            continue
-
-                        logger.info(f'https://lichess.org/{game_id} tier {tier}')
-                        try:
-                            puzzle = generator.analyze_game(game, tier)
-                            if puzzle is not None:
-                                logger.info(f'v{version} {args.file} {part}/{parts} {util.avg_knps()} knps, tier {tier}, game {games}')
-                                server.post(game_id, puzzle)
-                        except Exception as e:
-                            logger.error("Exception on {}: {}".format(game_id, e))
+            for i, game_offset in enumerate(filtered_games_offset):
+                pgn.seek(game_offset)
+                game = chess.pgn.read_game(pgn)
+                assert(game)
+                game_id = game.headers.get("Site", "?")[20:]
+                # logger.info(f'https://lichess.org/{game_id} tier {tier}')
+                try:
+                    puzzle = analyze_game(server, engine, game, tier)
+                    if puzzle is not None:
+                        logger.info(f'v{version} {args.file} {part}/{parts} {util.avg_knps()} knps, tier {tier}, game {i}')
+                        print(f"Game: {game_id}")
+                        server.post(game, puzzle, "_".join(players) if players is not None else "puzzle", write_h)
+                        write_h = False
+                except Exception as e:
+                    logger.error("Exception on {}: {}".format(game_id, e))
     except KeyboardInterrupt:
         print(f'v{version} {args.file} Game {games}')
         sys.exit(1)
