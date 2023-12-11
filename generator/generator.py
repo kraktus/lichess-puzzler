@@ -18,7 +18,7 @@ from typing import List, Optional, Union, Set
 from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
 from server import Server
 
-version = "48WC6" # Was made for the World Championship first
+version = "48WC7" # Was made for the World Championship first
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)-4s %(message)s', datefmt='%m/%d %H:%M')
@@ -283,6 +283,7 @@ def main() -> None:
     players = args.players
 
     try:
+        i = None
         with open_file(args.file) as pgn:
             filtered_games_offset: List[int] = []
             while "Look for all headers of the file":
@@ -301,7 +302,7 @@ def main() -> None:
                 white = headers.get("White", "?")
                 white_title = headers.get("WhiteTitle", "?")
                 black_title = headers.get("BlackTitle", "?")
-                if variant != "Standard":
+                if variant != "Standard" or variant != "Chess960":
                     continue
                 if players is not None and black not in players and white not in players:
                     continue
