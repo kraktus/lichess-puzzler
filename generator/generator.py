@@ -15,10 +15,10 @@ from chess.pgn import Game, ChildNode
 
 from pathlib import Path
 from typing import List, Optional, Union, Set
-from util import get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
+from util import count_mates, get_next_move_pair, material_count, material_diff, is_up_in_material, maximum_castling_rights, win_chances
 from server import Server
 
-version = "48WC8" # Was made for the World Championship first
+version = "48WC9" # Was made for the World Championship first
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s %(levelname)-4s %(message)s', datefmt='%m/%d %H:%M')
