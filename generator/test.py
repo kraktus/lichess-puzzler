@@ -139,15 +139,21 @@ class TestGenerator(unittest.TestCase):
     def test_not_puzzle_17(self) -> None:
         with open("test_pgn_3fold_uDMCM.pgn") as pgn:
             game = chess.pgn.read_game(pgn)
-            puzzle = self.gen.analyze_game(game, tier=10)
+            puzzle = self.gen.analyze_game(game, tier=10) # type: ignore
             self.assertEqual(puzzle, None)
+
+    def test_not_puzzle_tb_1(self) -> None:
+        # Adapted from
+        # sU950,5K2/8/7p/1p4P1/7P/k7/8/8 b - - 0 48,b5b4 g5h6 b4b3 h6h7 b3b2 h7h8q b2b1q h8c3 a3a4 c3c6,2255,83,90,81,advancedPawn crushing endgame pawnEndgame promotion veryLong,https://lichess.org/thNXB2dD/black#96
+        # when not using the tb, the generated puzzle at the time was one move too long, because `c3c6` is not the only winning move
+        self.get_puzzle("5K2/8/7p/1p4P1/7P/k7/8/8 b - - 0 48", Cp(0), "b5b4", Cp(800), "g5h6 b4b3 h6h7 b3b2 h7h8q b2b1q h8c3 a3a4")
 
     def get_puzzle(self, fen: str, prev_score: Score, move: str, current_score: Score, moves: str) -> None:
         board = Board(fen)
         game = Game.from_board(board)
         node = game.add_main_variation(Move.from_uci(move))
         current_eval = PovScore(current_score, not board.turn)
-        result = self.gen.analyze_position(node, prev_score, current_eval, tier=10)
+        result = self.gen.analyze_position(node, prev_score, current_eval, tier=10) # type: ignore
         self.assert_is_puzzle_with_moves(result, [Move.from_uci(x) for x in moves.split()])
 
 
@@ -156,7 +162,7 @@ class TestGenerator(unittest.TestCase):
         game = Game.from_board(board)
         node = game.add_main_variation(Move.from_uci(move))
         current_eval = PovScore(current_score, not board.turn)
-        result = self.gen.analyze_position( node, prev_score, current_eval, tier=10)
+        result = self.gen.analyze_position( node, prev_score, current_eval, tier=10) # type: ignore
         self.assertIsInstance(result, Score)
 
 
