@@ -1,12 +1,14 @@
 import unittest
 import logging
 import chess
-from model import Puzzle
+from model import Puzzle, NextMovePair, EngineMove
 from generator import logger
 from server import Server
+from tb import TbChecker, TB_API
 from chess.engine import SimpleEngine, Mate, Cp, Score, PovScore
 from chess import Move, Color, Board, WHITE, BLACK
 from chess.pgn import Game, GameNode
+from vcr.unittest import VCRTestCase
 from typing import List, Optional, Tuple, Literal, Union
 
 from generator import Generator, Server, make_engine
@@ -174,6 +176,45 @@ class TestGenerator(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.engine.close()
+
+class TestTbChecker(VCRTestCase):
+
+    def test_not_applicable_too_many_pieces(self) -> None:
+        checker = TbChecker(logger)
+        node = chess.pgn.Game()
+        pair = NextMovePair(node, WHITE, EngineMove(Move.from_uci("e2e4"), Cp(0)), None)
+        self.assertIsNone(checker.is_valid(pair, looking_for_mate=False))
+
+    def test_not_applicable_mate_puzzle(self) -> None:
+        checker = TbChecker(logger)
+        fen = "4k3/8/8/8/8/8/3PPPPP/4K3 w - - 0 1"
+        node = chess.pgn.Game.from_board(Board(fen=fen))
+        pair = NextMovePair(node, WHITE, EngineMove(Move.from_uci("e2e4"), Cp(0)), None)
+        self.assertIsNone(checker.is_valid(pair, looking_for_mate=True))
+
+    def test_multiple_winning_moves(self) -> None:
+        checker = TbChecker(logger)
+        fen = "4k3/8/8/8/8/8/3PPPPP/4K3 w - - 0 1"
+        node = chess.pgn.Game.from_board(Board(fen=fen))
+        pair = NextMovePair(node, WHITE, EngineMove(Move.from_uci("e2e4"), Cp(0)), None)
+        self.assertFalse(checker.is_valid(pair, looking_for_mate=False))
+
+
+    def test_incorrect_best_move(self) -> None:
+        """The position allow for only one good move, but it is not chosen by the engine for some reason"""
+        checker = TbChecker(logger)
+        fen = "5K2/8/7p/6P1/1p5P/k7/8/8 w - - 0 49"
+        node = chess.pgn.Game.from_board(Board(fen=fen))
+        pair = NextMovePair(node, WHITE, EngineMove(Move.from_uci("h4h5"), Cp(0)), None)
+        self.assertFalse(checker.is_valid(pair, looking_for_mate=False))
+
+    def test_correct_best_move(self) -> None:
+        """The position allow for only one good move, but it is not chosen by the engine for some reason"""
+        checker = TbChecker(logger)
+        fen = "5K2/8/7p/6P1/1p5P/k7/8/8 w - - 0 49"
+        node = chess.pgn.Game.from_board(Board(fen=fen))
+        pair = NextMovePair(node, WHITE, EngineMove(Move.from_uci("g5h6"), Cp(0)), None)
+        self.assertTrue(checker.is_valid(pair, looking_for_mate=False))
 
 
 if __name__ == '__main__':

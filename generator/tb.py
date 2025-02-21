@@ -17,7 +17,8 @@ RETRY_STRAT = Retry(
     total=5,
     backoff_factor=1,
     status_forcelist=[429, 500, 502, 503, 504],
-    allowed_methods=["GET"]
+    # in future versions `method_whitelist` is removed and replaced by `allowed_methods`
+    method_whitelist=["GET"]
 )
 ADAPTER = HTTPAdapter(max_retries=RETRY_STRAT)
 
@@ -29,7 +30,8 @@ class TbChecker:
         self.session.mount("https://", ADAPTER)
         self.log = log
 
-    def is_valid(self, node: GameNode, pair: NextMovePair, looking_for_mate: bool) -> Optional[bool]:
+    # `*` is used to force kwarg only for `looking_for_mate`
+    def is_valid(self, pair: NextMovePair, *,looking_for_mate: bool) -> Optional[bool]:
         """
         Returns `None` if the check is not applicable:
             - The position has more than 7 pieces.
@@ -39,7 +41,7 @@ class TbChecker:
         """
         if looking_for_mate:
             return None
-        board = node.board()
+        board = pair.node.board()
         if len(chess.SquareSet(board.occupied)) > 7:
             return None
 
@@ -51,8 +53,14 @@ class TbChecker:
             self.log.warning(f"req error while checking move pair for {fen}: {e}")
             return None
         # DEBUG
-        import json
-        print("rep", json.dumps(rep, indent=2))
+        import json, re
+        # using regex /b/b replace null -> None, true -> True, false -> False
+        dump = json.dumps(rep, indent=2)
+        dump = re.sub(r'\bnull\b', 'None', dump)
+        dump = re.sub(r'\btrue\b', 'True', dump)
+        dump = re.sub(r'\bfalse\b', 'False', dump)
+
+        print("rep", dump)
         # DEBUG
         is_valid = True
         if rep["category"] != "win":
