@@ -7,7 +7,7 @@ import copy
 import sys
 import util
 import zstandard
-from model import Puzzle, NextMovePair
+from model import Puzzle, NextMovePair, EngineMove
 from io import StringIO
 from chess import Move, Color
 from chess.engine import SimpleEngine, Mate, Cp, Score, PovScore
@@ -59,12 +59,12 @@ class Generator:
             pair.best.score > min_best_score_threshold)
         )
 
-    def get_next_only_winning_move(self, node: ChildNode, winner: Color,looking_for_mate: bool) -> Optional[Move]:
+    def get_next_only_winning_move(self, node: ChildNode, winner: Color,looking_for_mate: bool) -> Optional[EngineMove]:
         pair = get_next_move_pair(self.engine, node, winner, pair_limit)
         if node.board().turn == winner and not self.is_valid_attack(pair,looking_for_mate=looking_for_mate):
             logger.debug("No valid attack {}".format(pair))
             return None
-        return pair.best.move
+        return pair.best
 
     def get_next_move(self, node: ChildNode, limit: chess.engine.Limit) -> Optional[Move]:
         result = self.engine.play(node.board(), limit = limit)
@@ -78,9 +78,10 @@ class Generator:
             return []
 
         if board.turn == winner:
-            move = self.get_next_only_winning_move(node, winner,looking_for_mate=True)
-            if not move:
+            engine_move = self.get_next_only_winning_move(node, winner,looking_for_mate=True)
+            if not engine_move:
                 return None
+            move = engine_move.move
         else:
             next = self.get_next_move(node, mate_defense_limit)
             if not next:
@@ -95,7 +96,7 @@ class Generator:
         return [move] + follow_up
 
 
-    def cook_advantage(self, node: ChildNode, winner: Color) -> Optional[List[NextMovePair]]:
+    def cook_advantage(self, node: ChildNode, winner: Color) -> Optional[List[EngineMove]]:
 
         board = node.board()
 
@@ -104,15 +105,15 @@ class Generator:
             return None
 
         only_winning_move = self.get_next_only_winning_move(node, winner,looking_for_mate=False)
-        if not only_winning_move:
+        if only_winning_move is None:
             return []
 
-        follow_up = self.cook_advantage(node.add_main_variation(only_winning_move), winner)
+        follow_up = self.cook_advantage(node.add_main_variation(only_winning_move.move), winner)
 
         if follow_up is None:
             return None
 
-        return [pair] + follow_up
+        return [only_winning_move] + follow_up
 
 
     def analyze_game(self, game: Game, tier: int) -> Optional[Puzzle]:
@@ -201,7 +202,7 @@ class Generator:
                 logger.debug("Skip duplicate position")
                 return score
             puzzle_node = copy.deepcopy(node)
-            solution : Optional[List[NextMovePair]] = self.cook_advantage(puzzle_node, winner)
+            solution : Optional[List[EngineMove]] = self.cook_advantage(puzzle_node, winner)
             self.server.set_seen(node.game())
             if not solution:
                 return score
@@ -215,8 +216,8 @@ class Generator:
             if tier < 3 and len(solution) == 3:
                 logger.debug("Discard two-mover")
                 return score
-            cp = solution[len(solution) - 1].best.score.score()
-            return Puzzle(node, [p.best.move for p in solution], 999999998 if cp is None else cp)
+            cp = solution[len(solution) - 1].score.score()
+            return Puzzle(node, [p.move for p in solution], 999999998 if cp is None else cp)
         else:
             return score
 
