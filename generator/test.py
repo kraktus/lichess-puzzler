@@ -8,7 +8,7 @@ from tb import TbChecker, TB_API
 from chess.engine import SimpleEngine, Mate, Cp, Score, PovScore
 from chess import Move, Color, Board, WHITE, BLACK
 from chess.pgn import Game, GameNode
-from vcr.unittest import VCRTestCase
+from vcr.unittest import VCRTestCase # type: ignore
 from typing import List, Optional, Tuple, Literal, Union
 
 from generator import Generator, Server, make_engine
