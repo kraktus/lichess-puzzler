@@ -92,46 +92,37 @@ class TbChecker:
         except requests.exceptions.RequestException as e:
             self.log.warning(f"req error while checking tb for fen {fen}: {e}")
             return None
-        if rep["category"] != "win":
-            self.log.debug(f"TB position {fen} is not winning")
-            return TbResult(None)
-        # Normally the API return results in descending order 
+        # if rep["category"] != "win":
+        #     self.log.debug(f"TB position {fen} is not winning")
+        #     return TbResult(None)
+        # The API return results in descending order (best move firsts)
         # So only checking for the first two moves should be enough to know 
-        # if there are more than one winning move. Conservatively still check all of them.
-        only_winning_move = None
-        for move in rep["moves"]:
-            # move["category"] is from the opponent's point of vue
-            if move["category"] == "loss":
-                if only_winning_move is None:
-                    only_winning_move = EngineMove(chess.Move.from_uci(move["uci"]), chess.engine.Cp(999999998))
-                else:
-                    self.log.debug(f"in position {fen}, {only_winning_move} and {move['uci']}({move['san']}) are winning, opponent's category: {move['category']}")
-                    return TbResult(None)
-        return TbResult(only_winning_move)
-
-def sorted_by_wdl(moves: List[Dict[str, Any]]) -> List[Dict[str, Any]]
-    wdl_to_int_dict: Dict[WDL: int] = {
-        "win": 7,
-        "maybe-win": 6,
-        "draw": 5,
-        "blessed-loss": 4,
-        "maybe-loss": 3,
-        "loss": 2,
-        "unknown": 1
-    }
-    return sorted(moves, key = lambda move: wdl_to_int_dict[move["category"]], reverse = True)
+        # if there are more than one winning move.
+        moves = rep.get("moves", [])
+        if not moves:
+            return None
+        best = to_engine_move(moves[0], turn=not board.turn, winner=winner)
+        second = None
+        second_winning = False
+        if len(moves) > 1:
+            second_winning = moves[1]["category"] in ["loss", "maybe-loss"]
+            second = to_engine_move(moves[1], turn=not board.turn, winner=winner)
+        only_winning_move = rep["category"] == "win" and not second_winning
+        return TbPair(node=node, winner=winner, best=best, second=second,only_winning_move=only_winning_move)
 
 def to_engine_move(move: Dict[str, Any], *,turn: Color, winner: Color) -> EngineMove:
-    return EngineMove(chess.Move.from_uci(move["uci"]), chess.engine.Cp(move["cp"]))
-
+    pov_score = chess.engine.PovScore(relative=wdl_to_cp(move["category"]),turn=turn)
+    return EngineMove(chess.Move.from_uci(move["uci"]), pov_score.pov(winner))
 
 # conservative, because considering maybe-win as a draw, and maybe-loss as a loss
 def wdl_to_cp(wdl: WDL) -> chess.engine.Cp:
     if wdl == "win":
         return chess.engine.Cp(999999998)
-    elif wdl in ["maybe-win", "cursed-win", "draw", "blessed-loss"]:
+    # using `or` for mypy
+    elif wdl == "maybe-win" or wdl == "cursed-win" or wdl == "draw" or wdl == "blessed-loss":
         return chess.engine.Cp(0)
-    elif wdl in ["unknown", "maybe-loss", "loss"]:
+    # using `or` for mypy
+    elif wdl == "unknown" or wdl == "maybe-loss" or wdl == "loss":
         return chess.engine.Cp(-999999998)
 
 

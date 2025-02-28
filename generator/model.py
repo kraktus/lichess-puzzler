@@ -29,7 +29,7 @@ class NextMovePair:
     second: Optional[EngineMove]
 
 # More than just a TB probing result, since checking if other moves are also winning
-@dataclass(frozen=True)
+@dataclass
 class TbPair(NextMovePair):
     # `True` if the position is winning and only one move wins
     only_winning_move: bool
