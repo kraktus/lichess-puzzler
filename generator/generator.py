@@ -50,21 +50,19 @@ class Generator:
         return False
 
     # is pair.best the only continuation?
-    def is_valid_attack(self, pair: NextMovePair, looking_for_mate: bool) -> bool:
-        min_best_score_threshold = mate_soon if looking_for_mate else Cp(200)
+    def is_valid_attack(self, pair: NextMovePair) -> bool:
         return (
             pair.second is None or
             self.is_valid_mate_in_one(pair) or
-            (win_chances(pair.best.score) > win_chances(pair.second.score) + 0.7 and 
-            pair.best.score > min_best_score_threshold)
+            win_chances(pair.best.score) > win_chances(pair.second.score) + 0.7
         )
 
-    def get_next_only_winning_move(self, node: ChildNode, winner: Color,looking_for_mate: bool) -> Optional[Move]:
+    def get_next_pair(self, node: ChildNode, winner: Color) -> Optional[NextMovePair]:
         pair = get_next_move_pair(self.engine, node, winner, pair_limit)
-        if node.board().turn == winner and not self.is_valid_attack(pair,looking_for_mate=looking_for_mate):
+        if node.board().turn == winner and not self.is_valid_attack(pair):
             logger.debug("No valid attack {}".format(pair))
             return None
-        return pair.best.move
+        return pair
 
     def get_next_move(self, node: ChildNode, limit: chess.engine.Limit) -> Optional[Move]:
         result = self.engine.play(node.board(), limit = limit)
@@ -78,9 +76,13 @@ class Generator:
             return []
 
         if board.turn == winner:
-            move = self.get_next_only_winning_move(node, winner,looking_for_mate=True)
-            if not move:
+            pair = self.get_next_pair(node, winner)
+            if not pair:
                 return None
+            if pair.best.score < mate_soon:
+                logger.debug("Best move is not a mate, we're probably not searching deep enough")
+                return None
+            move = pair.best.move
         else:
             next = self.get_next_move(node, mate_defense_limit)
             if not next:
@@ -103,11 +105,14 @@ class Generator:
             logger.debug("Found repetition, canceling")
             return None
 
-        only_winning_move = self.get_next_only_winning_move(node, winner,looking_for_mate=False)
-        if not only_winning_move:
+        pair = self.get_next_pair(node, winner)
+        if not pair:
             return []
+        if pair.best.score < Cp(200):
+            logger.debug("Not winning enough, aborting")
+            return None
 
-        follow_up = self.cook_advantage(node.add_main_variation(only_winning_move), winner)
+        follow_up = self.cook_advantage(node.add_main_variation(pair.best.move), winner)
 
         if follow_up is None:
             return None
